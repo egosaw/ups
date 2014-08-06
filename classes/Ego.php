@@ -20,6 +20,7 @@ class Ego extends Base
 
     function __construct($config)
     {
+
         if (!file_exists($config))
             die("No such file {$config}" . PHP_EOL);
 
@@ -175,8 +176,9 @@ class Ego extends Base
     protected function applyFilters($data, $filters)
     {
 
-        if (!is_array($filters))
+        if (!is_array($filters)) {
             return $data;
+        }
 
         if (!isset($filters['filters']) OR !is_array($filters['filters']))
             $filters['filters'] = array();
@@ -255,10 +257,6 @@ class Ego extends Base
 
         if ($html instanceof simple_html_dom) {
 
-            //$params['uploadFile'] = false;// загружать файлы или нет
-            //$params['manyFiles'] = false;// указывается, если файлов много по одном селектору
-            //$params['required'] = false;// обязательность поля
-
             // пройтись по атрибутам
             foreach ($attributes AS $name => $params) {
 
@@ -284,11 +282,26 @@ class Ego extends Base
 
                             $i = 0;
                             foreach ($html->find($selector) AS $element) {
-                                if ($this->checkParam($params, 'uploadFile')) {
+
+                                if ($this->checkParam($params, 'uploadFile') && $this->checkParam($params, 'childPage') !== true) {
                                     $this->uploadFile($element->{$params['select']});
                                 }
 
-                                $result[$name][] = $element->{$params['select']};
+                                if ($this->checkParam($params, 'childPage')) {
+                                    if (strpos($element->{$params['select']}, $this->config['siteDomain']) == false) {
+                                        $element->{$params['select']} = $this->addDomain($element->{$params['select']}); //подцепляем домен к ссылке
+                                    }
+                                    $newData = $this->input->get($element->{$params['select']});
+                                    $newData = $this->childPageParse($newData, $params);
+                                    $result[$name] = $newData;
+                                } else {
+                                    $result[$name][] = $element->{$params['select']};
+                                }
+
+                                if ($this->checkParam($params, 'modifier')) { //модифицируем данные
+                                    $result[$name] = $this->modifier($result[$name], $params['modifier']);
+                                }
+
                             }
 
                         }
@@ -308,7 +321,6 @@ class Ego extends Base
 
                 }
 
-
                 if (isset($params['type']) AND $params['type'] != 'multi' AND is_array($result[$name])) {
                     $result[$name] = implode(",", $result[$name]); //todo: Вынести в конфиг разделитель для implode
                 }
@@ -326,14 +338,63 @@ class Ego extends Base
     }
 
 
-    public function delDomainFromPath($path = false)
+    protected function childPageParse($data, $params)
+    {
+
+        $result = array();
+        $html = str_get_html($data);
+
+        if ($html instanceof simple_html_dom) {
+
+            foreach ($html->find($params['childPage']['selector']) AS $element) {
+
+                //костылек. забираем фотографии исходного размера. Они лежат в корне.
+                preg_match('%(.*)/(.*)%', $element->{$params['childPage']['select']}, $arPath); //забираем имя файла
+                if ($arPath[2] !== '') {
+                    $element->{$params['childPage']['select']} = $this->addDomain('/' . $arPath[2], true);
+                }
+                //конец костылька
+
+                if ($this->checkParam($params['childPage'], 'uploadFile')) {
+                    $this->uploadFile($element->{$params['childPage']['select']});
+                }
+
+                $result[] = $element->{$params['childPage']['select']};
+            }
+
+            $result = array_unique($result);
+
+            $html->clear();
+        }
+
+        return $result;
+    }
+
+    public function delDomainFromPath($path = false, $img = false)
     {
 
         if ($path !== false) {
-            return str_replace($this->config['imgDomain'], '', $path);
+            if ($img == true) {
+                $path = str_replace($this->config['imgDomain'], '', $path);
+            } else {
+                $path = str_replace($this->config['siteDomain'], '', $path);
+            }
+
+            return $path;
         }
 
         return false;
+    }
+
+    public function addDomain($link, $img = false)
+    { //подцепляем домен к ссылке
+
+        if ($img == true) {
+            $link = $this->config['imgDomain'] . $link;
+        } else {
+            $link = $this->config['siteDomain'] . $link;
+        }
+        return $link;
     }
 
 
@@ -345,7 +406,7 @@ class Ego extends Base
                 $parentDir = $this->config['pathToFiles'];
             }
 
-            $newFile = $this->delDomainFromPath($file); //делаем относительные пути к файлам
+            $newFile = $this->delDomainFromPath($file, true); //делаем относительные пути к файлам
 
             preg_match('%(.*)/%', $newFile, $arPath); //забираем путь до файла
 
@@ -399,11 +460,34 @@ class Ego extends Base
     {
 
         if (array_key_exists($key, $arr)) {
-            if ($arr[$key] == true) {
+            if ($arr[$key] == true || $arr[$key] !== '') {
                 return true;
             }
         }
         return false;
+    }
+
+
+    public function modifier($data, $modifier)
+    {
+
+        $newData = array();
+
+        if (!isset($modifier) && !is_array($modifier)) {
+            return $data;
+        }
+
+        if (is_array($data)) {
+            foreach ($data as $value) {
+
+                if (in_array('md5', $modifier)) {
+                    $newData[] = md5($value);
+                }
+
+            }
+        }
+
+        return $newData;
     }
 
 
