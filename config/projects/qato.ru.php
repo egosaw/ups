@@ -85,7 +85,8 @@ return array(
         'Наименование автомобиля' => array('selectors' => array('div[id=container_h1] h1'), 'required' => true, 'filters' => array('strip_tags', 'trim'), 'type' => 'str'), //type указываем, чтобы на выход в csv была строка, а не массив
         'Комплектация' => array('selectors' => array('h2[id=complectation_chooser]'), 'required' => true, 'filters' => array('strip_tags', 'trim'), 'type' => 'str'), //type указываем, чтобы на выход в csv была строка, а не массив
         'Цена' => array('selectors' => array('span[id=modification-price-overall-2]'), 'required' => true, 'filters' => array('strip_tags', 'trim'), 'type' => 'str'), //type указываем, чтобы на выход в csv была строка, а не массив
-        'Опции' => array('selectors' => array('div[class=watch_for_updates_fix seo_text]'), 'filters' => array('trim'), 'type' => 'str'),
+        'Опции' => array('selectors' => array('div[id=complectation] ul[class=complectation_list]'), 'select' => 'innertext', 'sibling' => 'next', 'filters' => array('trim'), 'type' => 'str', 'json' => true),
+
         //'Основное изображение'          => array('selectors'=>array('img[id=current_photo_img]'), 'select'=>'src', 'type'=>'str', 'uploadFile'=>true), //select=>src указывает, что берем не текст а src картинки
         //'Дополнительные изображения'    => array('selectors'=>array('div[class=photo_previews] a[class=photo]'), 'select'=>'href', 'type'=>'str', 'uploadFile'=>true),
         //'Фотогалерея'                   => array('selectors'=>array('div[class=photo_previews] li[class=more] a'), 'select'=>'href', 'type'=>'str', 'childPage'=>array('uploadFile'=>true, 'selector'=>'ul[class=car_photo_gallery_nav_preview] a img', 'select'=>'src')),

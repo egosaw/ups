@@ -280,8 +280,18 @@ class Ego extends Base
 
                         } else {
 
-                            $i = 0;
-                            foreach ($html->find($selector) AS $element) {
+                            foreach ($html->find($selector) as $element) {
+
+                                if ($this->checkParam($params, 'sibling')) { //проверка на братьев\сестер
+
+                                    if ($params['sibling'] == 'next') { //следующий селектор за текущим
+                                        $element = $element->next_sibling();
+                                    }
+                                    if ($params['sibling'] == 'prev') { //предыдущий селектор за текущим
+                                        $element = $element->prev_sibling();
+                                    }
+
+                                }
 
                                 if ($this->checkParam($params, 'uploadFile') && $this->checkParam($params, 'childPage') !== true) {
                                     $this->uploadFile($element->{$params['select']});
@@ -301,6 +311,22 @@ class Ego extends Base
                                 if ($this->checkParam($params, 'modifier')) { //модифицируем данные
                                     $result[$name] = $this->modifier($result[$name], $params['modifier']);
                                 }
+
+
+                                //---------костыль. может еще когда-нибудь пригодиться.
+                                //--------Забираем json массив
+
+                                if ($this->checkParam($params, 'json')) {
+                                    preg_match('%\{(.*)\}\}%', $result[$name][0], $arOutput);
+
+                                    $arOutput[0] = str_replace('"', '^', $arOutput[0]); //заменяем кавычки, тк в csv они вырезаются
+
+                                    $result[$name][0] = $arOutput[0];
+
+                                }
+
+                                //-------конец-костыля
+
 
                             }
 
