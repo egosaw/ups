@@ -46,7 +46,7 @@ class Ego extends Base
 
     }
 
-    protected function runProject($name, $url = false, $ttl = 1)
+    protected function runProject($name, $url = false, $count_str = 0, $csvfp = false)
     {
 
         if (!isset($this->projects[$name]))
@@ -56,27 +56,28 @@ class Ego extends Base
         //если повторный вызов
         if ($url) {
             $this->config["url"] = $url;
-            $this->config['pagination']['ttl'] = $ttl;
         }
 
-        if (isset($this->config['export']))
-            $this->output = new $this->config['export']['class']($this->config['export'][0]);
-		
-		if (isset($this->config['import']))
+        if (isset($this->config['export'])) {
+            if ($csvfp !== false) { //передаем указатель на файл, чтобы страницы пагинации записывались в этот же файл
+                $this->output = new $this->config['export']['class']($this->config['export'][0], $count_str, $csvfp);
+			} else {
+                $this->output = new $this->config['export']['class']($this->config['export'][0], $count_str);
+			}
+        }
+
+        if (isset($this->config['import']))
             $this->input = new $this->config['import']['class']($this->config['import'][0]);
 
 		$this->log("Run project " . $name, true);
-
-		//$this-> test();die();
 
 		// Получить все ссылки на товары
 		$this->urlMap = $this->deep($this->config['url'], $this->config['deep']);
 
         // Получить все ссылки пагинации
-        $pagination = $this->deep($this->config['url'], $this->config['pagination']);
+        $pagination = $this->deep($this->config['url'], $this->config['pagination'], array(), true);
 
-        //var_dump(file_get_contents($this->config["url"]));
-
+        
 		// Пройтись по каждой ссылке
 		foreach ($this->urlMap as $url) {
 
@@ -87,7 +88,7 @@ class Ego extends Base
             $data = $this->input->get($this->current_url);
             $data = $this->parse($data);
 
-            print_r($data);
+            //print_r($data);
 
             if (!$data)
                 continue;
@@ -97,18 +98,19 @@ class Ego extends Base
             //Записать в базу данные
             $this->output->set($data);
 
-            //die("\nFinish\n");
         }
-        //Если есть пагинаторы на странице и количество переходов не исчерпано,
-        //то заново запускаем проект, с $url и уменьшеным на единицу ttl
-        if ((count($pagination) > 1) && ($this->config['pagination']['ttl'] != 0)) {
-            $this->config['pagination']['ttl']--;
-            foreach ($pagination as $key => $value) {
-                if ($key != count($pagination) - 1) {
-                    $this->runProject($name, $value, $this->config['pagination']['ttl']);
-                }
+
+
+		//Если есть пагинаторы на странице
+        if (is_array($pagination)) {
+            foreach ($pagination as $newUrl) {
+                $pagination = $this->deep($this->config['url'], $this->config['pagination'], array(), true);
+                $this->runProject($name, $newUrl, $this->output->getCntStr(), $this->output->getCsvfp());
             }
         }
+
+
+
 	}
 
     protected function test2()
@@ -130,7 +132,7 @@ class Ego extends Base
         print_r($data);
     }
 
-    protected function deep($url, $params, $result = array())
+    protected function deep($url, $params, $result = array(), $withoutUrl = false)
     {
 
         if (array_search($url, $this->config['exclude'])) {
@@ -147,7 +149,11 @@ class Ego extends Base
 
             $deep = $this->parse($data, array('urls' => array('selectors' => $params['selectors'], 'filters' => array('Ego::uri2absolute' => $basehref))));
 
-            $result = $this->merge($result, array_merge($deep['urls'], array($url)), $this->config['exclude']);
+            if ($withoutUrl == true) {
+                $result = $this->merge($result, $deep['urls'], $this->config['exclude']);
+            } else {
+                $result = $this->merge($result, array_merge($deep['urls'], array($url)), $this->config['exclude']);
+            }
         }
         if (isset($params['deep'])) {
             foreach ($deep['urls'] as $durl)
@@ -374,21 +380,37 @@ class Ego extends Base
 
             foreach ($html->find($params['childPage']['selector']) AS $element) {
 
-                //костылек. забираем фотографии исходного размера. Они лежат в корне.
-                preg_match('%(.*)/(.*)%', $element->{$params['childPage']['select']}, $arPath); //забираем имя файла
-                if ($arPath[2] !== '') {
-                    $element->{$params['childPage']['select']} = $this->addDomain('/' . $arPath[2], true);
-                }
-                //конец костылька
 
-                if ($this->checkParam($params['childPage'], 'uploadFile')) {
-                    $this->uploadFile($element->{$params['childPage']['select']});
+                if ($this->checkParam($params['childPage'], 'select')) {
+                    if ($params['childPage']['select'] == 'src') {
+                        //костылек. забираем фотографии исходного размера. Они лежат в корне.
+                        preg_match('%(.*)/(.*)%', $element->{$params['childPage']['select']}, $arPath); //забираем имя файла
+                        if ($arPath[2] !== '') {
+                            $element->{$params['childPage']['select']} = $this->addDomain('/' . $arPath[2], true);
+                        }
+                        //конец костылька
+                    }
+                    if ($this->checkParam($params['childPage'], 'uploadFile')) {
+                        $this->uploadFile($element->{$params['childPage']['select']});
+                    }
+                } else {
+                    $params['childPage']['select'] = 'plaintext';
                 }
+
+
+                if ($this->checkParam($params['childPage'], 'costul')) {
+                    if ($params['childPage']['costul'] == 'parameters') {
+                        $element->{$params['childPage']['select']} = trim(strip_tags(str_replace('<td>', '^', $element->{$params['childPage']['select']})));
+                    }
+                }
+
 
                 $result[] = $element->{$params['childPage']['select']};
             }
 
             $result = array_unique($result);
+
+            $result = $this->applyFilters($result, $params['childPage']);
 
             $html->clear();
         }
@@ -450,7 +472,7 @@ class Ego extends Base
                 if ($answer == false) {
                     $this->log("Ошибка загрузки файла: " . $fullPath . "\n");
                 } else {
-                    $this->log("Файл успешно загружен: " . $fullPath . "\n");
+                    //$this->log("Файл успешно загружен: ".$fullPath."\n");
                 }
             } else {
                 $this->log("Ошибка загрузки файла: " . $fullPath . "\n");
