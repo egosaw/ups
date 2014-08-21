@@ -4,7 +4,8 @@ return array(
 
     'imgDomain' => 'http://i.quto.ru',
     'siteDomain' => 'http://quto.ru',
-    'pathToFiles' => '/var/www/gruber/export/img',
+    //'pathToFiles' => '/var/www/gruber/export/img',
+    'pathToFiles' => '/home/snowmedia/public_html/monitor.snow-media.ru/base/gruber/export/img',
 
     // Для отдельного проекта можно переопределить способ экспорта
     'export'     => array(
@@ -19,7 +20,7 @@ return array(
     ),
     // Для отдельного проекта можно переопределить способ загрузки данных из сети
     'import'     => array(
-        'class' => 'Fgc',
+        'class' => 'Network',
         array(
             'cacheEnabled' => true,
             'cacheDir'     => 'cache',
@@ -41,7 +42,7 @@ return array(
     ),
 
     // Страница входа для поиска товаров
-    'url' => 'http://quto.ru/catalog/search/result/?order=price_asc',
+    'url' => 'http://quto.ru/catalog/search/result/?order=price_desc',
 
     //$params['uploadFile'] = false;// загружать файлы или нет
     //$params['childPage'] = false;// дочерние страницы
@@ -79,8 +80,8 @@ return array(
 //---------------->параметры для модификаций
 
 
-    /*    // Селекторы данных которые необходимо найти
-        'attributes' => array(
+    // Селекторы данных которые необходимо найти
+    /*    'attributes' => array(
             'id'                            => array('selectors'=>array('div[id=container_h1] h1'), 'required'=>true, 'modifier'=>array('md5'), 'type'=>'str'),
             'Наименование автомобиля'       => array('selectors'=>array('div[id=container_h1] h1'), 'required'=>true, 'filters'=>array('strip_tags','trim'), 'type'=>'str'), //type указываем, чтобы на выход в csv была строка, а не массив
             'Комплектация'                  => array('selectors'=>array('h2[id=complectation_chooser]'), 'required'=>true, 'filters'=>array('strip_tags','trim'), 'type'=>'str'), //type указываем, чтобы на выход в csv была строка, а не массив

@@ -46,7 +46,7 @@ class Ego extends Base
 
     }
 
-    protected function runProject($name, $url = false, $count_str = 0, $csvfp = false)
+    protected function runProject($name, $url = false, $count_str = 0, $csvfp = false, $thor = false)
     {
 
         if (!isset($this->projects[$name]))
@@ -66,29 +66,34 @@ class Ego extends Base
 			}
         }
 
-        if (isset($this->config['import']))
+        if (isset($this->config['import'])) {
             $this->input = new $this->config['import']['class']($this->config['import'][0]);
+			if ($this->config['import']['class'] == 'Network') {
+                $this->input->changeIp(); //смена ip при каждом запуске проекта
+                //$d = $this->input->getAllInfo("myip.ru"); //выведет инфу о текущем ip
+                //var_dump($d); die();
+            }
+		}
 
-		$this->log("Run project " . $name, true);
+        $this->log("Run project " . $name, true);
 
-		// Получить все ссылки на товары
-		$this->urlMap = $this->deep($this->config['url'], $this->config['deep']);
+        // Получить все ссылки на товары
+        $this->urlMap = $this->deep($this->config['url'], $this->config['deep']);
 
         // Получить все ссылки пагинации
         $pagination = $this->deep($this->config['url'], $this->config['pagination'], array(), true);
 
-        
-		// Пройтись по каждой ссылке
-		foreach ($this->urlMap as $url) {
+
+        // Пройтись по каждой ссылке
+        foreach ($this->urlMap as $url) {
 
             $this->log("Parse: " . $url);
 
             // Распарсить данные по URL
             $this->current_url = $url;
-            $data = $this->input->get($this->current_url);
-            $data = $this->parse($data);
+            $data = $this->input->post($this->current_url);
 
-            //print_r($data);
+            $data = $this->parse($data);
 
             if (!$data)
                 continue;
@@ -101,7 +106,7 @@ class Ego extends Base
         }
 
 
-		//Если есть пагинаторы на странице
+        //Если есть пагинаторы на странице
         if (is_array($pagination)) {
             foreach ($pagination as $newUrl) {
                 $pagination = $this->deep($this->config['url'], $this->config['pagination'], array(), true);
@@ -110,18 +115,15 @@ class Ego extends Base
         }
 
 
-
-	}
+    }
 
     protected function test2()
     {
         $this->current_url = 'http://www.carlopazolini.com/ru/collection/women/shoes/pumps/fl-glf3-20';
-        //$this->current_url = 'http://www.carlopazolini.com/ru/collection/women/shoes/lace-ups-and-loafers/fg-sma1-4r1';
         $data = $this->input->get($this->current_url);
         $data = $this->parse($data);
         $data['url'] = $this->current_url;
         print_r($data);
-        //$this->output->set($data);
     }
 
     protected function test()
