@@ -31,7 +31,12 @@ return array(
 		'ecco-shoes.ru'     => require('projects/ecco-shoes.php'),
 		'zvuchitkruto.ru'   => require('projects/zvuchitkruto.php'),
 		'qato.ru'           => require('projects/qato.ru.php'),
-
+		'major-expert'      => require('projects/major-expert.php'),
+		'ascgroup'      	=> require('projects/ascgroup.php'),
+		'autonissan'      	=> require('projects/autonissan.php'),
+		'infiniti-asc'      => require('projects/infiniti-asc.php'),
+		'kia-asc'      		=> require('projects/kia-asc.php'),
+		'audi-taganka'     	=> require('projects/audi-taganka.php'),
 	),
 
 );
